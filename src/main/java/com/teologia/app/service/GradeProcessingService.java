@@ -17,11 +17,32 @@ public class GradeProcessingService {
 
     @Transactional
     public void processStudentExamResult(GoogleFormsWebhookPayload payload) {
-        StudyMaterialProgress progress = progressRepository
-                .findByStudentEmailAndGoogleFormId(payload.studentEmail(), payload.formId())
-                .orElseThrow(() -> new IllegalArgumentException("Registro de apostila/prova não encontrado para o aluno e formulário informados."));
+        if (payload == null) {
+            throw new IllegalArgumentException("O payload do webhook não pode ser nulo.");
+        }
+        // Chamada direta usando os componentes do Record (sem 'get')
+        processStudentExamResult(
+            payload.studentEmail(),
+            payload.formId(),
+            payload.score()
+        );
+    }
 
-        progress.processGrade(payload.score());
+    @Transactional
+    public void processStudentExamResult(String email, String formId, Double score) {
+        if (email == null || formId == null) {
+            throw new IllegalArgumentException("E-mail e Form ID são obrigatórios.");
+        }
+
+        StudyMaterialProgress progress = progressRepository
+                .findByStudentEmailIgnoreCaseAndGoogleFormId(email.trim(), formId.trim())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        String.format("Registro não encontrado para o e-mail [%s] e formulário [%s].", email, formId)
+                ));
+
+        // Usa a regra de negócio da própria entidade
+        progress.processGrade(score);
+
         progressRepository.save(progress);
     }
 }
